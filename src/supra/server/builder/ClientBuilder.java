@@ -3,37 +3,46 @@ package supra.server.builder;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.ServerSocket;
 import java.net.Socket;
 
 import supra.server.command.CommandRouter;
 import supra.server.entity.Client;
-import supra.server.socket.ConnectionObserver;
-import supra.server.socket.FTPServerSocket;
-import supra.server.socket.ServerSocketCommand;
-import supra.server.socket.ServerSocketFile;
 
-public class ClientBuilder implements ConnectionObserver {
+public class ClientBuilder {
 
-	FTPServerSocket serverCommand;
-	FTPServerSocket serverFile;
+	ServerSocket serverCommand;
+	ServerSocket serverFile;
 	
 	public ClientBuilder() {
 		try {
-			serverCommand = new ServerSocketCommand();
-			serverCommand.subscribeNotifyConnection(this);
-			
+			serverCommand = new ServerSocket(2100);
 			Thread serverCommandThread = new Thread() {
 				public void run() {
-					serverCommand.start();	
+					while(!serverCommand.isClosed()) {
+						try {
+							CommandRouter.route(build(serverCommand.accept()));
+							System.out.println("A new client just connected to command server");
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
 			      }
 			};
 
-			serverFile = new ServerSocketFile();
-			serverFile.subscribeNotifyConnection(this);
-			
+			serverFile = new ServerSocket(2200);
 			Thread serverFileThread = new Thread() {
 				public void run() {
-					serverFile.start();
+					while(!serverFile.isClosed()) {
+						try {
+							CommandRouter.route(build(serverFile.accept()));
+							System.out.println("A new client just connected to files server");
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
 			      }
 			};
 			
@@ -45,20 +54,9 @@ public class ClientBuilder implements ConnectionObserver {
 		}
 	}
 	
-	@Override
-	public void updateAfterConnectionToCommandServer() {
-		new CommandRouter(build(serverCommand));
-	}
-	
-	@Override
-	public void updateAfterConnectionToFileServer() {
-		new CommandRouter(build(serverFile));
-	}
-	
-	private Client build(FTPServerSocket server) {
+	private Client build(Socket socketClient) {
 		Client client = null;
 		try {
-			Socket socketClient = server.getClients().remove(0);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socketClient.getInputStream()));
 			String command = in.readLine();
 			String[] args = command.split(" ");

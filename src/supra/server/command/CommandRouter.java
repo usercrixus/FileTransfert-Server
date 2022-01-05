@@ -7,6 +7,9 @@ import supra.server.entity.Client;
 
 public class CommandRouter{
 	public CommandRouter(Client client) {
+	}
+	
+	public static void route(Client client) {
 		switch (client.getCommand()) {
 		case LS: {
 			new LSCommand(client);
